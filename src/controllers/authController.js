@@ -68,15 +68,15 @@ exports.register = async (req, res) => {
     // Generate token
     const token = generateToken(user);
 
-    // Send congratulations email (don't wait for it)
-    emailService.sendSignupCongratulations(user).catch(err => {
-      console.error('Failed to send signup email:', err.message);
+    // ✅ SEND SINGLE COMBINED WELCOME EMAIL (not congratulations)
+    emailService.sendWelcomeEmail(user).catch(err => {
+      console.error('Failed to send welcome email:', err.message);
     });
 
     // Return success
     res.status(201).json({
       success: true,
-      message: 'Registration successful! Check your email for next steps.',
+      message: 'Registration successful! Welcome to CV Builder.',
       data: {
         user: {
           id: user._id,
@@ -148,16 +148,16 @@ exports.login = async (req, res) => {
     // Generate token
     const token = generateToken(user);
 
-    // Send welcome email only on first login (don't wait for it)
-    if (isFirstLogin) {
-      emailService.sendFirstLoginWelcome(user).catch(err => {
-        console.error('Failed to send welcome email:', err.message);
-      });
-    }
+    // ❌ REMOVED - No email on first login since we already sent it at registration
+    // if (isFirstLogin) {
+    //   emailService.sendFirstLoginWelcome(user).catch(err => {
+    //     console.error('Failed to send welcome email:', err.message);
+    //   });
+    // }
 
     // Prepare response message
     const message = isFirstLogin 
-      ? 'Welcome to CV Builder! Check your email for getting started guide.'
+      ? 'Welcome to CV Builder! Your account is ready.'
       : `Welcome back, ${user.firstName}!`;
 
     // Return success
