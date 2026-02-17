@@ -1,44 +1,61 @@
-const axios = require('axios');
+const sgMail = require('@sendgrid/mail');
 
 class EmailService {
   constructor() {
-    this.apiKey = process.env.BREVO_API_KEY;
-    this.baseURL = 'https://api.brevo.com/v3';
+    // Initialize SendGrid with API key
+    this.apiKey = process.env.SENDGRID_API_KEY;
+    sgMail.setApiKey(this.apiKey);
+    
     this.sender = {
-      email: process.env.BREVO_SENDER_EMAIL,
-      name: process.env.BREVO_SENDER_NAME
+      email: process.env.SENDGRID_SENDER_EMAIL,
+      name: process.env.SENDGRID_SENDER_NAME || 'CV Builder App'
     };
   }
 
   async sendEmail(to, subject, htmlContent) {
     try {
-      const response = await axios.post(
-        `${this.baseURL}/smtp/email`,
-        {
-          sender: this.sender,
-          to: [{ 
-            email: to.email, 
-            name: to.name 
-          }],
-          subject,
-          htmlContent,
-          headers: {
-            'X-Entity-Ref-ID': new Date().getTime().toString()
-          }
+      const msg = {
+        to: {
+          email: to.email,
+          name: to.name
         },
-        {
-          headers: {
-            'api-key': this.apiKey,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          }
+        from: {
+          email: this.sender.email,
+          name: this.sender.name
+        },
+        subject: subject,
+        html: htmlContent,
+        // Optional: Add tracking settings
+        trackingSettings: {
+          clickTracking: { enable: true },
+          openTracking: { enable: true }
         }
-      );
+      };
 
-      console.log(`📧 Email sent to ${to.email}`);
+      const response = await sgMail.send(msg);
+      
+      console.log(`📧 Email sent successfully to ${to.email}`);
+      console.log(`📬 SendGrid Response: ${response[0].statusCode}`);
       return true;
+      
     } catch (error) {
-      console.error('❌ Email error:', error.response?.data || error.message);
+      // Handle SendGrid specific errors
+      if (error.response) {
+        console.error('❌ SendGrid API Error:', {
+          statusCode: error.response.statusCode,
+          body: error.response.body,
+          message: error.response.body?.errors?.[0]?.message || 'Unknown error'
+        });
+        
+        // Log specific error details for debugging
+        if (error.response.body?.errors) {
+          error.response.body.errors.forEach(err => {
+            console.error(`   - ${err.message} (${err.field || 'N/A'})`);
+          });
+        }
+      } else {
+        console.error('❌ Email Error:', error.message);
+      }
       return false;
     }
   }
@@ -72,7 +89,7 @@ class EmailService {
             padding: 20px;
           }
           .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
             color: white;
             padding: 40px 20px;
             text-align: center;
@@ -93,6 +110,9 @@ class EmailService {
             margin-bottom: 20px;
             color: #333;
           }
+          .greeting h2 {
+            color: #1e88e5;
+          }
           .feature-box {
             background: #f8f9fa;
             padding: 25px;
@@ -107,11 +127,11 @@ class EmailService {
           .feature-icon {
             font-size: 24px;
             margin-right: 15px;
-            color: #667eea;
+            color: #1e88e5;
           }
           .button {
             display: inline-block;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #1e88e5;
             color: white;
             text-decoration: none;
             padding: 15px 35px;
@@ -119,6 +139,9 @@ class EmailService {
             font-weight: 600;
             font-size: 16px;
             margin: 20px 0;
+          }
+          .button:hover {
+            background: #1565c0;
           }
           .footer {
             text-align: center;
@@ -137,7 +160,7 @@ class EmailService {
           
           <div class="content">
             <div class="greeting">
-              <h2 style="color: #667eea;">Hi ${user.firstName}!</h2>
+              <h2>Hi ${user.firstName}!</h2>
               <p>Thank you for joining CV Builder. We're excited to help you create professional, standout resumes that will impress employers.</p>
             </div>
             
@@ -188,7 +211,7 @@ class EmailService {
       </html>
     `;
 
-    await this.sendEmail(
+    return await this.sendEmail(
       { 
         email: user.email, 
         name: `${user.firstName} ${user.lastName}` 
@@ -227,7 +250,7 @@ class EmailService {
             padding: 20px;
           }
           .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
             color: white;
             padding: 40px 20px;
             text-align: center;
@@ -248,7 +271,7 @@ class EmailService {
             margin-bottom: 30px;
           }
           .greeting h2 {
-            color: #667eea;
+            color: #1e88e5;
             margin-bottom: 10px;
           }
           .step-box {
@@ -263,7 +286,7 @@ class EmailService {
             align-items: flex-start;
           }
           .step-number {
-            background: #667eea;
+            background: #1e88e5;
             color: white;
             width: 30px;
             height: 30px;
@@ -277,7 +300,7 @@ class EmailService {
           }
           .button {
             display: inline-block;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #1e88e5;
             color: white;
             text-decoration: none;
             padding: 15px 35px;
@@ -286,12 +309,15 @@ class EmailService {
             font-size: 16px;
             margin: 20px 0;
           }
+          .button:hover {
+            background: #1565c0;
+          }
           .tip {
             background: #e3f2fd;
             padding: 20px;
             border-radius: 8px;
             margin: 30px 0;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #1e88e5;
           }
           .footer {
             text-align: center;
@@ -373,7 +399,7 @@ class EmailService {
       </html>
     `;
 
-    await this.sendEmail(
+    return await this.sendEmail(
       { 
         email: user.email, 
         name: `${user.firstName} ${user.lastName}` 

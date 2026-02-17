@@ -1,23 +1,41 @@
 const app = require('./src/app');
-const axios = require('axios');
+const sgMail = require('@sendgrid/mail');
 
 const PORT = process.env.PORT || 5000;
 
-// Function to check Brevo connection
-const checkBrevoConnection = async () => {
+// Function to check SendGrid connection
+const checkSendGridConnection = async () => {
   try {
-    const response = await axios.get('https://api.brevo.com/v3/account', {
-      headers: {
-        'api-key': process.env.BREVO_API_KEY
-      }
-    });
+    // Set API key
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     
-    if (response.status === 200) {
-      console.log(`✅ Brevo email service connected`);
+    // Verify API key by checking account info or sending a test
+    // This is a simple check - SendGrid doesn't have a direct "test" endpoint
+    // but we can check if the API key is set
+    if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY.length > 10) {
+      console.log(`✅ SendGrid email service configured`);
+      
+      // Optional: Send a test email to yourself to verify everything works
+      if (process.env.NODE_ENV === 'development') {
+        const testMsg = {
+          to: process.env.SENDGRID_SENDER_EMAIL,
+          from: process.env.SENDGRID_SENDER_EMAIL,
+          subject: 'SendGrid Test',
+          text: 'SendGrid is configured correctly!'
+        };
+        
+        // Uncomment to send test email on startup
+        // await sgMail.send(testMsg);
+        // console.log(`📧 Test email sent to ${process.env.SENDGRID_SENDER_EMAIL}`);
+      }
+      
       return true;
+    } else {
+      console.log(`❌ SendGrid API key not found or invalid`);
+      return false;
     }
   } catch (error) {
-    console.log(`❌ Brevo connection failed: ${error.response?.data?.message || error.message}`);
+    console.log(`❌ SendGrid connection failed: ${error.message}`);
     return false;
   }
 };
@@ -25,8 +43,8 @@ const checkBrevoConnection = async () => {
 const server = app.listen(PORT, async () => {
   console.log(`🚀 CV Builder backend running on port ${PORT} (${process.env.NODE_ENV || 'development'})`);
   
-  // Check Brevo connection
-  await checkBrevoConnection();
+  // Check SendGrid connection
+  await checkSendGridConnection();
 });
 
 // Graceful shutdown
