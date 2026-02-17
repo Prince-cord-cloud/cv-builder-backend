@@ -20,7 +20,7 @@ app.use(compression());
 
 // ✅ UPDATED CORS CONFIGURATION - Allow both Vercel frontend and localhost
 app.use(cors({
-  origin: ['https://cv-builder-app-black.vercel.app', 'http://localhost:3000'],
+  origin: ['https://cv-builder-app-black.vercel.app', 'http://localhost:5500'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
