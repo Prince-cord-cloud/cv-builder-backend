@@ -2,6 +2,7 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const emailService = require('../utils/emailService');
+const logger = require('../utils/logger');
 
 // Generate JWT Token
 const generateToken = (user) => {
@@ -21,10 +22,19 @@ const generateToken = (user) => {
 // @route   POST /api/auth/register
 // @access  Public
 exports.register = async (req, res) => {
+  const startTime = Date.now();
+  const { email, fullName } = req.body;
+  
+  logger.request(req);
+  logger.auth(`Registration attempt`, null, email);
+
   try {
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map(err => err.msg);
+      logger.warn(`Registration validation failed: ${errorMessages.join(', ')}`, null, email);
+      
       return res.status(400).json({
         success: false,
         errors: errors.array().map(err => ({
@@ -49,6 +59,8 @@ exports.register = async (req, res) => {
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
+      logger.warn(`Registration failed - email already exists`, existingUser._id, email);
+      
       return res.status(400).json({
         success: false,
         error: 'An account with this email already exists'
@@ -65,12 +77,28 @@ exports.register = async (req, res) => {
       loginCount: 0
     });
 
+    logger.database(`User created in database`, { 
+      userId: user._id, 
+      email: user.email,
+      name: `${firstName} ${lastName}`
+    });
+
     // Generate token
     const token = generateToken(user);
 
-    // ✅ SEND SINGLE COMBINED WELCOME EMAIL (not congratulations)
+    // Send combined welcome email
+    logger.activity('Triggering welcome email', user._id, user.email);
+    
     emailService.sendWelcomeEmail(user).catch(err => {
-      console.error('Failed to send welcome email:', err.message);
+      logger.error('Welcome email failed in background', err, user._id);
+    });
+
+    const duration = Date.now() - startTime;
+    logger.auth(`Registration successful`, user._id, user.email, true);
+    logger.response('POST', '/api/auth/register', 201, duration, user._id);
+    logger.activity('Account created', user._id, user.email, { 
+      name: `${firstName} ${lastName}`,
+      phoneNumber: phoneNumber || 'Not provided'
     });
 
     // Return success
@@ -90,7 +118,10 @@ exports.register = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Registration error:', error);
+    const duration = Date.now() - startTime;
+    logger.error('Registration error', error, null);
+    logger.response('POST', '/api/auth/register', 500, duration);
+    
     res.status(500).json({
       success: false,
       error: 'Registration failed. Please try again.'
@@ -102,10 +133,19 @@ exports.register = async (req, res) => {
 // @route   POST /api/auth/login
 // @access  Public
 exports.login = async (req, res) => {
+  const startTime = Date.now();
+  const { email } = req.body;
+  
+  logger.request(req);
+  logger.auth(`Login attempt`, null, email);
+
   try {
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map(err => err.msg);
+      logger.warn(`Login validation failed: ${errorMessages.join(', ')}`, null, email);
+      
       return res.status(400).json({
         success: false,
         errors: errors.array().map(err => ({
@@ -121,6 +161,8 @@ exports.login = async (req, res) => {
     const user = await User.findOne({ email }).select('+password');
     
     if (!user) {
+      logger.warn(`Login failed - user not found`, null, email);
+      
       return res.status(401).json({
         success: false,
         error: 'Invalid email or password'
@@ -131,6 +173,8 @@ exports.login = async (req, res) => {
     const isPasswordMatch = await user.comparePassword(password);
     
     if (!isPasswordMatch) {
+      logger.warn(`Login failed - invalid password`, user._id, email);
+      
       return res.status(401).json({
         success: false,
         error: 'Invalid email or password'
@@ -148,12 +192,14 @@ exports.login = async (req, res) => {
     // Generate token
     const token = generateToken(user);
 
-    // ❌ REMOVED - No email on first login since we already sent it at registration
-    // if (isFirstLogin) {
-    //   emailService.sendFirstLoginWelcome(user).catch(err => {
-    //     console.error('Failed to send welcome email:', err.message);
-    //   });
-    // }
+    const duration = Date.now() - startTime;
+    logger.auth(`Login successful`, user._id, email, true);
+    logger.response('POST', '/api/auth/login', 200, duration, user._id);
+    logger.activity('User logged in', user._id, email, { 
+      loginCount: user.loginCount,
+      isFirstLogin,
+      lastLogin: user.lastLogin
+    });
 
     // Prepare response message
     const message = isFirstLogin 
@@ -180,7 +226,10 @@ exports.login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Login error:', error);
+    const duration = Date.now() - startTime;
+    logger.error('Login error', error, null);
+    logger.response('POST', '/api/auth/login', 500, duration);
+    
     res.status(500).json({
       success: false,
       error: 'Login failed. Please try again.'
@@ -192,9 +241,18 @@ exports.login = async (req, res) => {
 // @route   GET /api/auth/me
 // @access  Private
 exports.getMe = async (req, res) => {
+  const startTime = Date.now();
+  
+  logger.request(req, req.user.id);
+
   try {
     const user = await User.findById(req.user.id);
     
+    logger.database(`User data retrieved`, { userId: user._id });
+    
+    const duration = Date.now() - startTime;
+    logger.response('GET', '/api/auth/me', 200, duration, user._id);
+
     res.status(200).json({
       success: true,
       data: {
@@ -210,8 +268,12 @@ exports.getMe = async (req, res) => {
         }
       }
     });
+
   } catch (error) {
-    console.error('Get user error:', error);
+    const duration = Date.now() - startTime;
+    logger.error('Get user error', error, req.user?.id);
+    logger.response('GET', '/api/auth/me', 500, duration, req.user?.id);
+    
     res.status(500).json({
       success: false,
       error: 'Failed to get user information'

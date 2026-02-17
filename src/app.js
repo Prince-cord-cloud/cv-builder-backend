@@ -6,6 +6,7 @@ require('dotenv').config();
 
 const connectDB = require('./config/database');
 const authRoutes = require('./routes/authRoutes');
+const logger = require('./utils/logger'); // Add this line
 
 const app = express();
 
@@ -35,19 +36,38 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Request logging in development
-if (process.env.NODE_ENV === 'development') {
-  app.use((req, res, next) => {
-    console.log(`📨 ${req.method} ${req.url}`);
-    next();
+// ✅ ADD THIS REQUEST LOGGING MIDDLEWARE
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  const userId = req.user?.id || null;
+  
+  // Log the incoming request
+  console.log(`[${new Date().toISOString()}] 📨 ${req.method} ${req.originalUrl}${userId ? ` (User: ${userId})` : ''}`);
+  
+  // Log response when finished
+  res.on('finish', () => {
+    const duration = Date.now() - startTime;
+    const status = res.statusCode < 400 ? '✅' : '❌';
+    console.log(`[${new Date().toISOString()}] ${status} RESPONSE: ${req.method} ${req.originalUrl} - ${res.statusCode} - ${duration}ms${userId ? ` (User: ${userId})` : ''}`);
   });
-}
+  
+  next();
+});
+
+// Request logging in development (you can remove this since we have the global one above)
+// if (process.env.NODE_ENV === 'development') {
+//   app.use((req, res, next) => {
+//     console.log(`📨 ${req.method} ${req.url}`);
+//     next();
+//   });
+// }
 
 // Routes
 app.use('/api/auth', authRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
+  logger.server('Health check performed');
   res.status(200).json({
     success: true,
     message: 'CV Builder API is running',
@@ -59,6 +79,7 @@ app.get('/health', (req, res) => {
 
 // 404 handler
 app.use('*', (req, res) => {
+  logger.warn(`Route not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({
     success: false,
     error: 'Route not found'
@@ -67,7 +88,7 @@ app.use('*', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('❌ Error:', err);
+  logger.error('Global error handler', err, req.user?.id);
 
   // Mongoose duplicate key error
   if (err.code === 11000) {

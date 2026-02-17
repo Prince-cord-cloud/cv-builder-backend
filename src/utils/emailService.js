@@ -1,4 +1,5 @@
 const sgMail = require('@sendgrid/mail');
+const logger = require('./logger');
 
 class EmailService {
   constructor() {
@@ -9,6 +10,8 @@ class EmailService {
       email: process.env.SENDGRID_SENDER_EMAIL,
       name: process.env.SENDGRID_SENDER_NAME || 'CV Builder App'
     };
+    
+    logger.server('Email service initialized');
   }
 
   // Helper to create plain text version
@@ -20,6 +23,8 @@ class EmailService {
   }
 
   async sendEmail(to, subject, htmlContent) {
+    const startTime = Date.now();
+    
     try {
       const unsubscribeUrl = `${process.env.FRONTEND_URL}/unsubscribe?email=${encodeURIComponent(to.email)}`;
       
@@ -45,23 +50,44 @@ class EmailService {
         }
       };
 
+      logger.email(`Attempting to send email`, to.email);
+      
       const response = await sgMail.send(msg);
-      console.log(`📧 Email sent successfully to ${to.email}`);
+      const duration = Date.now() - startTime;
+      
+      logger.email(`Email sent successfully`, to.email, true);
+      logger.emailDetails(to.email, subject, true, { 
+        statusCode: response[0].statusCode,
+        duration: `${duration}ms`
+      });
+      
       return true;
       
     } catch (error) {
+      const duration = Date.now() - startTime;
+      
+      logger.email(`Failed to send email`, to.email, false);
+      
       if (error.response) {
-        console.error('❌ SendGrid API Error:', error.response.body);
+        logger.error('SendGrid API Error', {
+          statusCode: error.response.statusCode,
+          body: error.response.body,
+          duration: `${duration}ms`
+        });
       } else {
-        console.error('❌ Email Error:', error.message);
+        logger.error('Email Error', error.message);
       }
+      
+      logger.emailDetails(to.email, subject, false, null, error.message);
       return false;
     }
   }
 
-  // SINGLE COMBINED EMAIL - Welcome & Congratulations Together
+  // Single combined welcome email
   async sendWelcomeEmail(user) {
     const subject = `🎉 Welcome to CV Builder, ${user.firstName}!`;
+    
+    logger.activity('Sending welcome email', user._id, user.email);
     
     const htmlContent = `<!DOCTYPE html>
 <html>
@@ -229,11 +255,19 @@ class EmailService {
 </body>
 </html>`;
 
-    return await this.sendEmail(
+    const result = await this.sendEmail(
       { email: user.email, name: `${user.firstName} ${user.lastName}` },
       subject,
       htmlContent
     );
+    
+    if (result) {
+      logger.success(`Welcome email sent to ${user.email}`, user._id);
+    } else {
+      logger.error(`Failed to send welcome email to ${user.email}`, null, user._id);
+    }
+    
+    return result;
   }
 }
 
