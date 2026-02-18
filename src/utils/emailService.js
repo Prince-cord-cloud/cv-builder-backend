@@ -218,42 +218,52 @@ class EmailService {
             </td>
           </tr>
           
-          <!-- Dashboard Link (Not a Button) -->
-          <tr>
-            <td style="padding: 40px 40px 20px 40px;">
-              <table width="100%">
-                <tr>
-                  <td align="center">
-                    <p style="color: #475569; font-size: 16px; margin: 0 0 8px 0;">👉 <strong style="color: #2563eb;">Your Dashboard:</strong></p>
-                    <p style="color: #2563eb; font-size: 18px; word-break: break-all; margin: 0;">${process.env.FRONTEND_URL}/dashboard</p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+         <!-- Dashboard Button (Now a Clickable Button) -->
+<tr>
+  <td style="padding: 40px 40px 20px 40px;">
+    <table width="100%">
+      <tr>
+        <td align="center">
+          <p style="color: #475569; font-size: 16px; margin: 0 0 16px 0;">👉 <strong style="color: #2563eb;">Your Dashboard is Ready:</strong></p>
           
-          <!-- Footer -->
-          <tr>
-            <td style="padding: 30px 40px 40px 40px; border-top: 1px solid #e2e8f0;">
-              <table width="100%">
-                <tr>
-                  <td align="center" style="color: #94a3b8; font-size: 14px;">
-                    <p style="margin: 0 0 12px 0;">© ${new Date().getFullYear()} CV Builder. All rights reserved.</p>
-                    <p style="margin: 0; font-size: 13px;">
-                      This email was sent to ${user.email}<br>
-                      You received this because you created a CV Builder account.
-                    </p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+          <!-- Button Styling -->
+          <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+            <tr>
+              <td align="center" style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border-radius: 50px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
+                <a href="${process.env.FRONTEND_URL}/dashboard.html" 
+                   style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 18px; letter-spacing: 0.5px;">
+                  🚀 Go to Your Dashboard
+                </a>
+              </td>
+            </tr>
+          </table>
+          
+          <!-- Optional Secondary Link (for email clients that block buttons) -->
+          <p style="color: #64748b; font-size: 14px; margin: 20px 0 0 0;">
+            Or copy this link: <span style="color: #2563eb; word-break: break-all;">${process.env.FRONTEND_URL}/dashboard.html</span>
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+
+<!-- Footer -->
+<tr>
+  <td style="padding: 30px 40px 40px 40px; border-top: 1px solid #e2e8f0;">
+    <table width="100%">
+      <tr>
+        <td align="center" style="color: #94a3b8; font-size: 14px;">
+          <p style="margin: 0 0 12px 0;">© ${new Date().getFullYear()} CV Builder. All rights reserved.</p>
+          <p style="margin: 0; font-size: 13px;">
+            This email was sent to ${user.email}<br>
+            You received this because you created a CV Builder account.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>`;
 
     const result = await this.sendEmail(
       { email: user.email, name: `${user.firstName} ${user.lastName}` },

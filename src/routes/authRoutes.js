@@ -3,12 +3,13 @@ const router = express.Router();
 const { body } = require('express-validator');
 const { register, login, getMe } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
+const { requestOtp, verifyOtp, resetPassword } = require('../controllers/otpController');
 
 // Validation rules for registration - NOW WITH CONFIRM PASSWORD
 const registerValidation = [
   body('fullName')
     .trim()
-    .notEmpty().withMessage('Full name is required')
+    .notEmpty().withMessage('Please provide your full name (First Name & Last Name)')
     .isLength({ min: 2, max: 100 }).withMessage('Name must be between 2 and 100 characters'),
   
   body('email')
@@ -53,5 +54,8 @@ const loginValidation = [
 router.post('/register', registerValidation, register);
 router.post('/login', loginValidation, login);
 router.get('/me', protect, getMe);
+router.post('/request-otp', requestOtp);
+router.post('/verify-otp', verifyOtp);
+router.post('/reset-password', resetPassword);
 
 module.exports = router;

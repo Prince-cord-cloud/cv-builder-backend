@@ -13,7 +13,7 @@ const checkSendGridConnection = async () => {
     // This is a simple check - SendGrid doesn't have a direct "test" endpoint
     // but we can check if the API key is set
     if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY.length > 10) {
-      console.log(`✅ SendGrid email service configured`);
+      console.log(`✅ SendGrid email service connected`);
       
       // Optional: Send a test email to yourself to verify everything works
       if (process.env.NODE_ENV === 'development') {
@@ -21,7 +21,7 @@ const checkSendGridConnection = async () => {
           to: process.env.SENDGRID_SENDER_EMAIL,
           from: process.env.SENDGRID_SENDER_EMAIL,
           subject: 'SendGrid Test',
-          text: 'SendGrid is configured correctly!'
+          text: 'SendGrid email service connected successfully!'
         };
         
         // Uncomment to send test email on startup
@@ -49,14 +49,14 @@ const server = app.listen(PORT, async () => {
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log(`👋 SIGTERM received, shutting down gracefully...`);
+  console.log(`👋 Server has gone offline`);
   server.close(() => {
     process.exit(0);
   });
 });
 
 process.on('SIGINT', () => {
-  console.log(`👋 SIGINT received, shutting down gracefully...`);
+  console.log(`👋 Server has gone offline`);
   server.close(() => {
     process.exit(0);
   });

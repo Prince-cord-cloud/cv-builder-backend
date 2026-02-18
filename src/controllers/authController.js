@@ -23,13 +23,13 @@ const generateToken = (user) => {
 // @access  Public
 exports.register = async (req, res) => {
   const startTime = Date.now();
-  const { email, fullName } = req.body;
+  const { email, fullName, password, phoneNumber } = req.body;
   
   logger.request(req);
   logger.auth(`Registration attempt`, null, email);
 
   try {
-    // Check validation errors
+    // Check validation errors from express-validator
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       const errorMessages = errors.array().map(err => err.msg);
@@ -44,14 +44,30 @@ exports.register = async (req, res) => {
       });
     }
 
-    const { fullName, email, password, phoneNumber } = req.body;
+    // ✅ ADD THIS: Validate that full name contains at least two words
+    if (fullName) {
+      const nameParts = fullName.trim().split(/\s+/);
+      if (nameParts.length < 2) {
+        logger.warn(`Registration failed - full name required (first and last name)`, null, email);
+        
+        return res.status(400).json({
+          success: false,
+          errors: [
+            {
+              field: "fullName",
+              message: "Please enter your full name (first and last name)"
+            }
+          ]
+        });
+      }
+    }
 
     // Split full name into first and last name
     let firstName = '';
     let lastName = '';
     
     if (fullName) {
-      const nameParts = fullName.trim().split(' ');
+      const nameParts = fullName.trim().split(/\s+/);
       firstName = nameParts[0] || '';
       lastName = nameParts.slice(1).join(' ') || '';
     }
@@ -80,7 +96,7 @@ exports.register = async (req, res) => {
     logger.database(`User created in database`, { 
       userId: user._id, 
       email: user.email,
-      name: `${firstName} ${lastName}`
+      name: `${firstName} ${lastName}`.trim()
     });
 
     // Generate token
@@ -97,7 +113,7 @@ exports.register = async (req, res) => {
     logger.auth(`Registration successful`, user._id, user.email, true);
     logger.response('POST', '/api/auth/register', 201, duration, user._id);
     logger.activity('Account created', user._id, user.email, { 
-      name: `${firstName} ${lastName}`,
+      name: `${firstName} ${lastName}`.trim(),
       phoneNumber: phoneNumber || 'Not provided'
     });
 
@@ -280,3 +296,6 @@ exports.getMe = async (req, res) => {
     });
   }
 };
+
+// ✅ EXPORT generateToken FUNCTION FOR USE IN OTHER CONTROLLERS
+module.exports.generateToken = generateToken;
